@@ -31,7 +31,11 @@ func main() {
 	go startProxyServer("8087", "8088")
 
 	// 4. Start the periodic sync
-	go startPeriodicSync()
+	if os.Getenv("BW_DISABLE_SYNC") != "true" {
+		go startPeriodicSync()
+	} else {
+		fmt.Println("Automatic sync is disabled.")
+	}
 
 	// Keep the main goroutine alive
 	select {}

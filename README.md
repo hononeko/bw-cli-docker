@@ -68,6 +68,8 @@ spec:
                                 key: BW_PASSWORD
                       - name: BW_SYNC_INTERVAL
                         value: "15m" # Optional: defaults to 2m
+                      - name: BW_DISABLE_SYNC
+                        value: "false" # Optional: disables automatic sync
                   readinessProbe:
                     httpGet:
                       path: /healthz
@@ -111,6 +113,34 @@ This endpoint triggers a `bw sync` command to manually synchronize the vault wit
 
 All other requests are proxied directly to the `bw serve` process. This is how the External Secrets Operator will interact with the Bitwarden vault.
 
+### Alternative Sync Methods
+
+If you disable the built-in periodic sync (`BW_DISABLE_SYNC: "true"`), you can still trigger synchronization externally. This is useful if you prefer to manage synchronization on your own schedule.
+
+A common approach in Kubernetes is to use a `CronJob` to call the `/sync` endpoint. Here is an example that runs every 15 minutes:
+
+```YAML
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: bitwarden-sync-cron
+  namespace: external-secrets # Match the namespace of your service
+spec:
+  schedule: "*/15 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: bitwarden-sync-trigger
+            image: curlimages/curl:latest
+            args:
+            - -X
+            - POST
+            - http://bitwarden-cli-service:8087/sync
+          restartPolicy: OnFailure
+```
+
 ## 🔧 Environment Variables
 
 The container is configured using the following environment variables.
@@ -122,6 +152,7 @@ The container is configured using the following environment variables.
 | BW_CLIENTSECRET    | The API Key Client Secret from your Bitwarden account.                         | Yes      | `N/A`   |
 | BW_PASSWORD        | Your master password, used to unlock the vault.                                | Yes      | `N/A`   |
 | BW_SYNC_INTERVAL   | The interval for periodic background syncs (e.g., `2m`, `1h`, `15m`).           | No       | `2m`    |
+| BW_DISABLE_SYNC    | Disables automatic background sync when set to `true`.                         | No       | `false` |
 
 ## 🛠️ Building the Image
 
