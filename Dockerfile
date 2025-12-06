@@ -1,7 +1,7 @@
 # Stage 1: "downloader"
 # This stage downloads and extracts the Bitwarden CLI binary.
 FROM debian:sid AS downloader
-ARG BW_CLI_VERSION=2025.9.0
+ARG BW_CLI_VERSION=2025.11.0
 ENV BW_CLI_VERSION=${BW_CLI_VERSION}
 RUN apt-get update && \
     apt-get install -y curl unzip && \
