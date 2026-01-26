@@ -115,3 +115,4 @@ func TestSyncEndpointMethodNotAllowed(t *testing.T) {
 			status, http.StatusMethodNotAllowed)
 	}
 }
+	

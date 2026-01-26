@@ -23,6 +23,7 @@ have root access within the container.
 This image is intended to be run as a service inside a Kubernetes cluster.
 
 ### Kubernetes Manifest
+
 Here is an example Deployment that uses this image and exposes it as a service for ESO.
 
 ```YAML
@@ -145,16 +146,17 @@ spec:
 
 The container is configured using the following environment variables.
 
-| Variable           | Description                                                                    | Required | Default |
-|--------------------|--------------------------------------------------------------------------------|----------|---------|
-| BW_HOST            | The full URL of your Vaultwarden/Bitwarden instance.                           | No       | `N/A`   |
-| BW_CLIENTID        | The API Key Client ID from your Bitwarden account.                             | Yes      | `N/A`   |
-| BW_CLIENTSECRET    | The API Key Client Secret from your Bitwarden account.                         | Yes      | `N/A`   |
-| BW_PASSWORD        | Your master password, used to unlock the vault.                                | Yes      | `N/A`   |
-| BW_SYNC_INTERVAL   | The interval for periodic background syncs (e.g., `2m`, `1h`, `15m`).          | No       | `2m`    |
-| BW_DISABLE_SYNC    | Disables automatic background sync when set to `true`.                         | No       | `false` |
-| BW_SERVE_PORT      | The port 'bw serve' listens on (internal).                                     | No       | `8088`  |
-| BW_PROXY_PORT      | The port the proxy server listens on (exposed).                                | No       | `8087`  |
+| Variable         | Description                                                           | Required | Default     |
+| ---------------- | --------------------------------------------------------------------- | -------- | ----------- |
+| BW_HOST          | The full URL of your Vaultwarden/Bitwarden instance.                  | No       | `N/A`       |
+| BW_CLIENTID      | The API Key Client ID from your Bitwarden account.                    | Yes      | `N/A`       |
+| BW_CLIENTSECRET  | The API Key Client Secret from your Bitwarden account.                | Yes      | `N/A`       |
+| BW_PASSWORD      | Your master password, used to unlock the vault.                       | Yes      | `N/A`       |
+| BW_SYNC_INTERVAL | The interval for periodic background syncs (e.g., `2m`, `1h`, `15m`). | No       | `2m`        |
+| BW_DISABLE_SYNC  | Disables automatic background sync when set to `true`.                | No       | `false`     |
+| BW_SERVE_PORT    | The port 'bw serve' listens on (internal).                            | No       | `8088`      |
+| BW_PROXY_HOST    | The host for the proxy server used for periodic sync calls.           | No       | `localhost` |
+| BW_PROXY_PORT    | The port the proxy server listens on (exposed).                       | No       | `8087`      |
 
 ## 🛠️ Building the Image
 

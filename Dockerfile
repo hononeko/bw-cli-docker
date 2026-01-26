@@ -18,9 +18,9 @@ RUN apt-get update && \
 # This stage compiles our Go entrypoint program into a static binary.
 FROM golang:1.25-alpine AS builder
 WORKDIR /app
-COPY main.go .
 COPY go.mod ./
 RUN go mod download
+COPY main.go .
 # Build a static, CGO-disabled binary to ensure it runs on any minimal base image.
 RUN CGO_ENABLED=0 go build -o /entrypoint .
 
