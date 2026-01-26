@@ -19,8 +19,8 @@ RUN apt-get update && \
 FROM golang:1.25-alpine AS builder
 WORKDIR /app
 COPY main.go .
-RUN go mod init entrypoint
-RUN go mod tidy
+COPY go.mod ./
+RUN go mod download
 # Build a static, CGO-disabled binary to ensure it runs on any minimal base image.
 RUN CGO_ENABLED=0 go build -o /entrypoint .
 

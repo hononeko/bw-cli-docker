@@ -22,13 +22,13 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: '1.25'
           cache: true
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9.2.0
         with:
-          version: v1.60
+          version: v2.8.0
 
       - name: Run Unit Tests
         run: go test -v ./...
