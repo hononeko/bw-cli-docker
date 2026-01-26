@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -191,9 +192,15 @@ func startPeriodicSync(host, port string) {
 			fmt.Fprintf(os.Stderr, "Periodic sync failed: %v", err)
 			continue
 		}
+		defer resp.Body.Close()
+
 		if resp.StatusCode != http.StatusOK {
-			fmt.Fprintf(os.Stderr, "Periodic sync failed with status code: %d", resp.StatusCode)
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Periodic sync failed with status code: %d and could not read body: %v\n", resp.StatusCode, err)
+			} else {
+				fmt.Fprintf(os.Stderr, "Periodic sync failed with status code: %d, body: %s\n", resp.StatusCode, string(body))
+			}
 		}
-		_ = resp.Body.Close()
 	}
 }
