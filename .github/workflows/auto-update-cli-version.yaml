@@ -20,7 +20,7 @@ jobs:
         run: |
           # Query Bitwarden clients releases, filter by name containing 'CLI', and get the tag name
           LATEST_RELEASE_TAG=$(curl -s "https://api.github.com/repos/bitwarden/clients/releases" | \
-            jq -r '.[] | select(.name | test("CLI")) | .tag_name' | \
+            jq -r '.[] | select(.name // "" | test("CLI")) | .tag_name' | \
             head -n 1)
           
           # Extract the version number (e.g., 'cli-v2025.9.0' -> '2025.9.0')
