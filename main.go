@@ -192,7 +192,6 @@ func startPeriodicSync(host, port string) {
 			fmt.Fprintf(os.Stderr, "Periodic sync failed: %v", err)
 			continue
 		}
-		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
 			body, err := io.ReadAll(resp.Body)
@@ -202,5 +201,6 @@ func startPeriodicSync(host, port string) {
 				fmt.Fprintf(os.Stderr, "Periodic sync failed with status code: %d, body: %s\n", resp.StatusCode, string(body))
 			}
 		}
+		_ = resp.Body.Close()
 	}
 }
