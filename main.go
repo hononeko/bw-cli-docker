@@ -36,7 +36,10 @@ func main() {
 	fmt.Println("Bitwarden login successful.")
 
 	// Set the session token as an environment variable for all child processes
-	os.Setenv("BW_SESSION", sessionToken)
+	if err := os.Setenv("BW_SESSION", sessionToken); err != nil {
+		fmt.Fprintf(os.Stderr, "FATAL: Failed to set BW_SESSION environment variable: %v\n", err)
+		os.Exit(1)
+	}
 
 	// 2. Start the actual 'bw serve' process in the background
 	bwServePort := getEnv("BW_SERVE_PORT", "8088")
@@ -137,7 +140,7 @@ func setupRouter(proxy *httputil.ReverseProxy) *http.ServeMux {
 	// Health check endpoint
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, "OK")
+		_, _ = fmt.Fprint(w, "OK")
 	})
 
 	// Sync endpoint
@@ -158,7 +161,7 @@ func setupRouter(proxy *httputil.ReverseProxy) *http.ServeMux {
 		}
 		fmt.Println("Sync successful.")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, "Sync successful")
+		_, _ = fmt.Fprint(w, "Sync successful")
 	})
 
 	// Proxy all other requests to the 'bw serve' process
@@ -191,6 +194,6 @@ func startPeriodicSync(host, port string) {
 		if resp.StatusCode != http.StatusOK {
 			fmt.Fprintf(os.Stderr, "Periodic sync failed with status code: %d", resp.StatusCode)
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close()
 	}
 }
