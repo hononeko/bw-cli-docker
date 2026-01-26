@@ -1,13 +1,16 @@
 # Stage 1: "downloader"
 # This stage downloads and extracts the Bitwarden CLI binary.
-FROM debian:sid AS downloader
+FROM debian:bookworm-slim AS downloader
 ARG BW_CLI_VERSION=2025.12.1
 ENV BW_CLI_VERSION=${BW_CLI_VERSION}
 RUN apt-get update && \
-    apt-get install -y curl unzip && \
+    apt-get install -y --no-install-recommends curl unzip ca-certificates && \
     curl -fL "https://github.com/bitwarden/clients/releases/download/cli-v${BW_CLI_VERSION}/bw-linux-${BW_CLI_VERSION}.zip" -o bw.zip && \
     unzip bw.zip && \
-    chmod +x bw
+    chmod +x bw && \
+    rm bw.zip && \
+    apt-get purge -y --auto-remove curl unzip && \
+    rm -rf /var/lib/apt/lists/*
 
 # --------------------------------------------------------------------
 
@@ -15,16 +18,16 @@ RUN apt-get update && \
 # This stage compiles our Go entrypoint program into a static binary.
 FROM golang:1.25-alpine AS builder
 WORKDIR /app
+COPY go.mod ./
+RUN go mod download
 COPY main.go .
-RUN go mod init entrypoint
-RUN go mod tidy
 # Build a static, CGO-disabled binary to ensure it runs on any minimal base image.
 RUN CGO_ENABLED=0 go build -o /entrypoint .
 
 # --------------------------------------------------------------------
 
 # Stage 3: "final"
-# This is our final, minimal, shell-less image.
+# This is the final, minimal, shell-less image.
 # Using 'static' ensures there are no shells or other binaries.
 FROM gcr.io/distroless/cc-debian12
 
@@ -36,6 +39,6 @@ COPY --from=builder /entrypoint /entrypoint
 
 USER nonroot:nonroot
 
-# Set the entrypoint to our compiled Go program.98
-EXPOSE 8080
+# Set the entrypoint to the compiled Go program.
+EXPOSE 8087
 ENTRYPOINT ["/entrypoint"]
