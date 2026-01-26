@@ -13,7 +13,7 @@ RUN apt-get update && \
 
 # Stage 2: "builder"
 # This stage compiles our Go entrypoint program into a static binary.
-FROM golang:1.22-alpine AS builder
+FROM golang:1.25-alpine AS builder
 WORKDIR /app
 COPY main.go .
 RUN go mod init entrypoint
