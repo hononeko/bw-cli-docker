@@ -4,10 +4,13 @@ FROM debian:bookworm-slim AS downloader
 ARG BW_CLI_VERSION=2025.12.1
 ENV BW_CLI_VERSION=${BW_CLI_VERSION}
 RUN apt-get update && \
-    apt-get install -y curl unzip ca-certificates && \
+    apt-get install -y --no-install-recommends curl unzip ca-certificates && \
     curl -fL "https://github.com/bitwarden/clients/releases/download/cli-v${BW_CLI_VERSION}/bw-linux-${BW_CLI_VERSION}.zip" -o bw.zip && \
     unzip bw.zip && \
-    chmod +x bw
+    chmod +x bw && \
+    rm bw.zip && \
+    apt-get purge -y --auto-remove curl unzip && \
+    rm -rf /var/lib/apt/lists/*
 
 # --------------------------------------------------------------------
 

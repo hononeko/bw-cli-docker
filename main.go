@@ -12,6 +12,20 @@ import (
 	"time"
 )
 
+// getEnv retrieves the value of the environment variable named by the key.
+// If the variable is present and not empty, the value is returned.
+// Otherwise, the fallback value is returned.
+// os.LookupEnv is preferred over os.Getenv to distinguish between unset and empty,
+// allows for robust handling where empty might not be desired.
+func getEnv(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok && value != "" {
+		return value
+	}
+	return fallback
+}
+
+var execCommand = exec.Command
+
 func main() {
 	// 1. Login, Unlock, and get Session Token
 	sessionToken, err := loginAndGetSession()
@@ -25,22 +39,17 @@ func main() {
 	os.Setenv("BW_SESSION", sessionToken)
 
 	// 2. Start the actual 'bw serve' process in the background
-	bwServePort := os.Getenv("BW_SERVE_PORT")
-	if bwServePort == "" {
-		bwServePort = "8088"
-	}
+	bwServePort := getEnv("BW_SERVE_PORT", "8088")
 	go startBwServe(bwServePort)
 
 	// 3. Start the proxy server on the main port
-	bwProxyPort := os.Getenv("BW_PROXY_PORT")
-	if bwProxyPort == "" {
-		bwProxyPort = "8087"
-	}
+	bwProxyPort := getEnv("BW_PROXY_PORT", "8087")
 	go startProxyServer(bwProxyPort, bwServePort)
 
 	// 4. Start the periodic sync
-	if os.Getenv("BW_DISABLE_SYNC") != "true" {
-		go startPeriodicSync()
+	if getEnv("BW_DISABLE_SYNC", "false") != "true" {
+		bwProxyHost := getEnv("BW_PROXY_HOST", "localhost")
+		go startPeriodicSync(bwProxyHost, bwProxyPort)
 	} else {
 		fmt.Println("Automatic sync is disabled.")
 	}
@@ -64,7 +73,7 @@ func loginAndGetSession() (string, error) {
 	// if custom host is specified, configure bw-cli to use it
 	if host != "" {
 		fmt.Println("Configuring bw-cli to use the supplied host", host)
-		cmdConfig := exec.Command("bw", "config", "server", host)
+		cmdConfig := execCommand("bw", "config", "server", host)
 		configResult, err := cmdConfig.CombinedOutput()
 		if err != nil {
 			return "", fmt.Errorf("bw config server failed: %s - %v", string(configResult), err)
@@ -72,7 +81,7 @@ func loginAndGetSession() (string, error) {
 	}
 
 	// Login using API Key
-	cmdLogin := exec.Command("bw", "login", "--apikey")
+	cmdLogin := execCommand("bw", "login", "--apikey")
 	loginOutput, err := cmdLogin.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("bw login failed: %s - %v", string(loginOutput), err)
@@ -82,7 +91,7 @@ func loginAndGetSession() (string, error) {
 
 	fmt.Println("Unlocking vault...")
 	// Unlock the vault and get the session key
-	cmdUnlock := exec.Command("bw", "unlock", "--passwordenv", "BW_PASSWORD", "--raw")
+	cmdUnlock := execCommand("bw", "unlock", "--passwordenv", "BW_PASSWORD", "--raw")
 	unlockOutput, err := cmdUnlock.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("bw unlock failed: %s - %v", string(unlockOutput), err)
@@ -94,7 +103,7 @@ func loginAndGetSession() (string, error) {
 // startBwServe starts the 'bw serve' process.
 func startBwServe(port string) {
 	fmt.Printf("Starting 'bw serve' on internal port %s\n", port)
-	cmd := exec.Command("bw", "serve", "--hostname", "0.0.0.0", "--port", port)
+	cmd := execCommand("bw", "serve", "--hostname", "0.0.0.0", "--port", port)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
@@ -112,6 +121,17 @@ func startProxyServer(proxyPort, targetPort string) {
 	}
 
 	proxy := httputil.NewSingleHostReverseProxy(targetURL)
+	mux := setupRouter(proxy)
+
+	fmt.Printf("Starting proxy server on port %s\n", proxyPort)
+	if err := http.ListenAndServe(":"+proxyPort, mux); err != nil {
+		fmt.Fprintf(os.Stderr, "FATAL: Proxy server failed: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+// setupRouter configures the proxy and handlers
+func setupRouter(proxy *httputil.ReverseProxy) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	// Health check endpoint
@@ -127,7 +147,7 @@ func startProxyServer(proxyPort, targetPort string) {
 			return
 		}
 		fmt.Println("Executing 'bw sync'...")
-		cmd := exec.Command("bw", "sync")
+		cmd := execCommand("bw", "sync")
 		var out bytes.Buffer
 		cmd.Stdout = &out
 		cmd.Stderr = &out
@@ -144,20 +164,11 @@ func startProxyServer(proxyPort, targetPort string) {
 	// Proxy all other requests to the 'bw serve' process
 	mux.HandleFunc("/", proxy.ServeHTTP)
 
-	fmt.Printf("Starting proxy server on port %s\n", proxyPort)
-	if err := http.ListenAndServe(":"+proxyPort, mux); err != nil {
-		fmt.Fprintf(os.Stderr, "FATAL: Proxy server failed: %v\n", err)
-		os.Exit(1)
-	}
+	return mux
 }
 
-// startPeriodicSync starts a loop that periodically calls the /sync endpoint.
-// The interval is configurable via the BW_SYNC_INTERVAL environment variable (e.g., "2m", "1h").
-func startPeriodicSync() {
-	syncIntervalStr := os.Getenv("BW_SYNC_INTERVAL")
-	if syncIntervalStr == "" {
-		syncIntervalStr = "2m" // Default to 2 minutes
-	}
+func startPeriodicSync(host, port string) {
+	syncIntervalStr := getEnv("BW_SYNC_INTERVAL", "2m")
 
 	syncInterval, err := time.ParseDuration(syncIntervalStr)
 	if err != nil {
@@ -165,13 +176,14 @@ func startPeriodicSync() {
 		syncInterval = 2 * time.Minute
 	}
 
-	fmt.Printf("Starting periodic sync every %s\n", syncInterval)
+	syncURL := fmt.Sprintf("http://%s:%s/sync", host, port)
+	fmt.Printf("Starting periodic sync every %s targeting %s\n", syncInterval, syncURL)
 	ticker := time.NewTicker(syncInterval)
 	defer ticker.Stop()
 
 	for range ticker.C {
 		fmt.Println("Periodic sync triggered...")
-		resp, err := http.Post("http://localhost:8087/sync", "application/json", nil)
+		resp, err := http.Post(syncURL, "application/json", nil)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Periodic sync failed: %v", err)
 			continue
