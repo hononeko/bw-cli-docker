@@ -1,3 +1,30 @@
 {
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json"
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits"
+  ],
+  "dependencyDashboard": true,
+  "timezone": "Europe/Chisinau",
+  "rebaseWhen": "behind-base-branch",
+  "labels": [
+    "renovate",
+    "dependencies"
+  ],
+  "automergeType": "pr",
+  "prHeader": "## 🤖 Renovate: Dependency Maintenance",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": [
+        "^Dockerfile$"
+      ],
+      "matchStrings": [
+        "ARG BW_CLI_VERSION=(?<currentValue>.*?)\\s"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "bitwarden/clients",
+      "extractVersionTemplate": "^cli-v(?<version>.*)$"
+    }
+  ]
 }
