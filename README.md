@@ -1,6 +1,6 @@
 # Bitwarden CLI Proxy & Webhook
 
-This container image runs the [Bitwarden CLI](https://github.com/bitwarden/clients) (`bw`) and exposes its `serve` functionality through a proxy on port 8087. The proxy provides endpoints for health checks and manual synchronization, and automatically runs a periodic background sync to keep the vault up-to-date.
+This container image runs the [Bitwarden CLI](https://github.com/bitwarden/clients) (`bw`) and exposes its `serve` functionality through a proxy on port 8087 by default. The proxy provides endpoints for health checks and manual synchronization, and automatically runs a periodic background sync to keep the vault up-to-date.
 
 It is designed to be used as a webhook provider for the [External Secrets Operator](https://external-secrets.io/latest/) (ESO) in Kubernetes, allowing you to sync secrets from a self-hosted Vaultwarden or Bitwarden instance.
 
@@ -151,8 +151,10 @@ The container is configured using the following environment variables.
 | BW_CLIENTID        | The API Key Client ID from your Bitwarden account.                             | Yes      | `N/A`   |
 | BW_CLIENTSECRET    | The API Key Client Secret from your Bitwarden account.                         | Yes      | `N/A`   |
 | BW_PASSWORD        | Your master password, used to unlock the vault.                                | Yes      | `N/A`   |
-| BW_SYNC_INTERVAL   | The interval for periodic background syncs (e.g., `2m`, `1h`, `15m`).           | No       | `2m`    |
+| BW_SYNC_INTERVAL   | The interval for periodic background syncs (e.g., `2m`, `1h`, `15m`).          | No       | `2m`    |
 | BW_DISABLE_SYNC    | Disables automatic background sync when set to `true`.                         | No       | `false` |
+| BW_SERVE_PORT      | The port 'bw serve' listens on (internal).                                     | No       | `8088`  |
+| BW_PROXY_PORT      | The port the proxy server listens on (exposed).                                | No       | `8087`  |
 
 ## 🛠️ Building the Image
 

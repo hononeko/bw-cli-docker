@@ -25,10 +25,18 @@ func main() {
 	os.Setenv("BW_SESSION", sessionToken)
 
 	// 2. Start the actual 'bw serve' process in the background
-	go startBwServe("8088")
+	bwServePort := os.Getenv("BW_SERVE_PORT")
+	if bwServePort == "" {
+		bwServePort = "8088"
+	}
+	go startBwServe(bwServePort)
 
-	// 3. Start our proxy server on the main port (8087)
-	go startProxyServer("8087", "8088")
+	// 3. Start the proxy server on the main port
+	bwProxyPort := os.Getenv("BW_PROXY_PORT")
+	if bwProxyPort == "" {
+		bwProxyPort = "8087"
+	}
+	go startProxyServer(bwProxyPort, bwServePort)
 
 	// 4. Start the periodic sync
 	if os.Getenv("BW_DISABLE_SYNC") != "true" {
@@ -161,19 +169,16 @@ func startPeriodicSync() {
 	ticker := time.NewTicker(syncInterval)
 	defer ticker.Stop()
 
-	for {
-		select {
-		case <-ticker.C:
-			fmt.Println("Periodic sync triggered...")
-			resp, err := http.Post("http://localhost:8087/sync", "application/json", nil)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Periodic sync failed: %v", err)
-				continue
-			}
-			if resp.StatusCode != http.StatusOK {
-				fmt.Fprintf(os.Stderr, "Periodic sync failed with status code: %d", resp.StatusCode)
-			}
-			resp.Body.Close()
+	for range ticker.C {
+		fmt.Println("Periodic sync triggered...")
+		resp, err := http.Post("http://localhost:8087/sync", "application/json", nil)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Periodic sync failed: %v", err)
+			continue
 		}
+		if resp.StatusCode != http.StatusOK {
+			fmt.Fprintf(os.Stderr, "Periodic sync failed with status code: %d", resp.StatusCode)
+		}
+		resp.Body.Close()
 	}
 }
