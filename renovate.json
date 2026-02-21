@@ -26,5 +26,15 @@
       "depNameTemplate": "bitwarden/clients",
       "extractVersionTemplate": "^cli-v(?<version>.*)$"
     }
+  ],
+  "packageRules": [
+    {
+      "matchPackageNames": [
+        "go",
+        "golang",
+        "docker.io/library/golang"
+      ],
+      "groupName": "Go"
+    }
   ]
 }
