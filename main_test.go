@@ -176,6 +176,9 @@ func TestIsUnlocked(t *testing.T) {
 		{`{"status": "unlocked"}`, true},
 		{`{"data": {"template": {"status": "locked"}}}`, false},
 		{`{}`, false},
+		{`{"data": 123}`, false},
+		{`{"data": {"template": []}}`, false},
+		{`{"status": {}}`, false},
 	}
 
 	for _, tt := range tests {
