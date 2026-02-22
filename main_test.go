@@ -130,7 +130,7 @@ func TestWaitForBwServe_Unlocked(t *testing.T) {
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"data": {"template": {"status": "unlocked"}}}`))
+		_, _ = w.Write([]byte(`{"data": {"template": {"status": "unlocked"}}}`))
 	}))
 	defer ts.Close()
 
@@ -154,7 +154,7 @@ func TestWaitForBwServe_Timeout(t *testing.T) {
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"data": {"template": {"status": "locked"}}}`))
+		_, _ = w.Write([]byte(`{"data": {"template": {"status": "locked"}}}`))
 	}))
 	defer ts.Close()
 
@@ -180,7 +180,7 @@ func TestIsUnlocked(t *testing.T) {
 
 	for _, tt := range tests {
 		var v map[string]interface{}
-		json.Unmarshal([]byte(tt.jsonStr), &v)
+		_ = json.Unmarshal([]byte(tt.jsonStr), &v)
 		if got := isUnlocked(v); got != tt.want {
 			t.Errorf("isUnlocked(%s) = %v, want %v", tt.jsonStr, got, tt.want)
 		}

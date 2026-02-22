@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -133,41 +134,79 @@ func waitForBwServe(port string) error {
 	statusURL := fmt.Sprintf("http://127.0.0.1:%s/status", port)
 	client := &http.Client{Timeout: 2 * time.Second}
 
+	retries := bwServeWaitRetries
+	if val := os.Getenv("BW_SERVE_WAIT_RETRIES"); val != "" {
+		if r, err := strconv.Atoi(val); err == nil {
+			retries = r
+		}
+	}
+	interval := bwServeWaitInterval
+	if val := os.Getenv("BW_SERVE_WAIT_INTERVAL"); val != "" {
+		if d, err := time.ParseDuration(val); err == nil {
+			interval = d
+		}
+	}
+
 	fmt.Println("Waiting for 'bw serve' to become ready and unlocked...")
 
-	for i := 0; i < bwServeWaitRetries; i++ {
-		resp, err := client.Get(statusURL)
-		if err == nil {
-			body, ioErr := io.ReadAll(resp.Body)
-			resp.Body.Close()
-			if resp.StatusCode == http.StatusOK && ioErr == nil {
-				var v map[string]interface{}
-				if err := json.Unmarshal(body, &v); err == nil {
-					if isUnlocked(v) {
-						return nil
-					}
-				}
-			}
+	for i := 0; i < retries; i++ {
+		if checkBwServeStatus(client, statusURL) {
+			return nil
 		}
-		time.Sleep(bwServeWaitInterval)
+		time.Sleep(interval)
 	}
 	return fmt.Errorf("timeout waiting for bw serve to become unlocked")
 }
 
-func isUnlocked(v map[string]interface{}) bool {
-	if data, ok := v["data"].(map[string]interface{}); ok {
-		if template, ok := data["template"].(map[string]interface{}); ok {
-			if status, ok := template["status"].(string); ok && status == "unlocked" {
-				return true
-			}
-		}
-		if status, ok := data["status"].(string); ok && status == "unlocked" {
-			return true
-		}
+func checkBwServeStatus(client *http.Client, statusURL string) bool {
+	resp, err := client.Get(statusURL)
+	if err != nil {
+		return false
 	}
-	if status, ok := v["status"].(string); ok && status == "unlocked" {
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		return false
+	}
+
+	body, ioErr := io.ReadAll(resp.Body)
+	if ioErr != nil {
+		return false
+	}
+
+	var v map[string]interface{}
+	if err := json.Unmarshal(body, &v); err != nil {
+		return false
+	}
+
+	return isUnlocked(v)
+}
+
+func isUnlocked(v map[string]interface{}) bool {
+	extractStatus := func(m map[string]interface{}) string {
+		if m == nil {
+			return ""
+		}
+		if s, ok := m["status"].(string); ok {
+			return s
+		}
+		return ""
+	}
+
+	if extractStatus(v) == "unlocked" {
 		return true
 	}
+
+	data, _ := v["data"].(map[string]interface{})
+	if extractStatus(data) == "unlocked" {
+		return true
+	}
+
+	template, _ := data["template"].(map[string]interface{})
+	if extractStatus(template) == "unlocked" {
+		return true
+	}
+
 	return false
 }
 
