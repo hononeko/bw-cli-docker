@@ -177,38 +177,39 @@ func checkBwServeStatus(client *http.Client, statusURL string) bool {
 		return false
 	}
 
-	var v map[string]interface{}
+	var v BwStatusResponse
 	if err := json.Unmarshal(body, &v); err != nil {
 		fmt.Fprintf(os.Stderr, "DEBUG: checkBwServeStatus failed to unmarshal JSON: %v, body: %s\n", err, string(body))
 		return false
 	}
 
-	return isUnlocked(v)
+	return v.isUnlocked()
 }
 
-func isUnlocked(v map[string]interface{}) bool {
-	if s, ok := v["status"].(string); ok && s == "unlocked" {
+// BwStatusResponse defines the structure for the /status endpoint response.
+type BwStatusResponse struct {
+	Status string `json:"status"`
+	Data   *struct {
+		Status   string `json:"status"`
+		Template *struct {
+			Status string `json:"status"`
+		} `json:"template"`
+	} `json:"data"`
+}
+
+// isUnlocked checks if the Bitwarden status is "unlocked".
+func (s *BwStatusResponse) isUnlocked() bool {
+	if s.Status == "unlocked" {
 		return true
 	}
-
-	data, ok := v["data"].(map[string]interface{})
-	if !ok {
-		return false
+	if s.Data != nil {
+		if s.Data.Status == "unlocked" {
+			return true
+		}
+		if s.Data.Template != nil && s.Data.Template.Status == "unlocked" {
+			return true
+		}
 	}
-
-	if s, ok := data["status"].(string); ok && s == "unlocked" {
-		return true
-	}
-
-	template, ok := data["template"].(map[string]interface{})
-	if !ok {
-		return false
-	}
-
-	if s, ok := template["status"].(string); ok && s == "unlocked" {
-		return true
-	}
-
 	return false
 }
 
