@@ -161,21 +161,25 @@ func waitForBwServe(port string) error {
 func checkBwServeStatus(client *http.Client, statusURL string) bool {
 	resp, err := client.Get(statusURL)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "DEBUG: checkBwServeStatus client.Get failed: %v\n", err)
 		return false
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
+		fmt.Fprintf(os.Stderr, "DEBUG: checkBwServeStatus non-OK status code received: %d\n", resp.StatusCode)
 		return false
 	}
 
 	body, ioErr := io.ReadAll(resp.Body)
 	if ioErr != nil {
+		fmt.Fprintf(os.Stderr, "DEBUG: checkBwServeStatus failed to read response body: %v\n", ioErr)
 		return false
 	}
 
 	var v map[string]interface{}
 	if err := json.Unmarshal(body, &v); err != nil {
+		fmt.Fprintf(os.Stderr, "DEBUG: checkBwServeStatus failed to unmarshal JSON: %v, body: %s\n", err, string(body))
 		return false
 	}
 
@@ -183,27 +187,29 @@ func checkBwServeStatus(client *http.Client, statusURL string) bool {
 }
 
 func isUnlocked(v map[string]interface{}) bool {
-	extractStatus := func(m map[string]interface{}) string {
-		if m == nil {
-			return ""
-		}
-		if s, ok := m["status"].(string); ok {
-			return s
-		}
-		return ""
-	}
-
-	if extractStatus(v) == "unlocked" {
+	if s, ok := v["status"].(string); ok && s == "unlocked" {
 		return true
 	}
 
-	data, _ := v["data"].(map[string]interface{})
-	if extractStatus(data) == "unlocked" {
+	data, ok := v["data"].(map[string]interface{})
+	if !ok {
+		return false
+	}
+
+	if s, ok := data["status"].(string); ok && s == "unlocked" {
 		return true
 	}
 
-	template, _ := data["template"].(map[string]interface{})
-	return extractStatus(template) == "unlocked"
+	template, ok := data["template"].(map[string]interface{})
+	if !ok {
+		return false
+	}
+
+	if s, ok := template["status"].(string); ok && s == "unlocked" {
+		return true
+	}
+
+	return false
 }
 
 // startProxyServer starts the proxy and health check server.
