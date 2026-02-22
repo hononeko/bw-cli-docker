@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"testing"
-	"time"
 )
 
 // mockExecCommand mocks exec.Command for testing
@@ -119,14 +118,8 @@ func TestSyncEndpointMethodNotAllowed(t *testing.T) {
 }
 
 func TestWaitForBwServe_Unlocked(t *testing.T) {
-	oldRetries := bwServeWaitRetries
-	oldInterval := bwServeWaitInterval
-	bwServeWaitRetries = 5
-	bwServeWaitInterval = 10 * time.Millisecond
-	defer func() {
-		bwServeWaitRetries = oldRetries
-		bwServeWaitInterval = oldInterval
-	}()
+	t.Setenv("BW_SERVE_WAIT_RETRIES", "5")
+	t.Setenv("BW_SERVE_WAIT_INTERVAL", "10ms")
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -143,14 +136,8 @@ func TestWaitForBwServe_Unlocked(t *testing.T) {
 }
 
 func TestWaitForBwServe_Timeout(t *testing.T) {
-	oldRetries := bwServeWaitRetries
-	oldInterval := bwServeWaitInterval
-	bwServeWaitRetries = 2
-	bwServeWaitInterval = 10 * time.Millisecond
-	defer func() {
-		bwServeWaitRetries = oldRetries
-		bwServeWaitInterval = oldInterval
-	}()
+	t.Setenv("BW_SERVE_WAIT_RETRIES", "2")
+	t.Setenv("BW_SERVE_WAIT_INTERVAL", "10ms")
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -182,9 +169,10 @@ func TestIsUnlocked(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		var v map[string]interface{}
-		_ = json.Unmarshal([]byte(tt.jsonStr), &v)
-		if got := isUnlocked(v); got != tt.want {
+		var v BwStatusResponse
+		err := json.Unmarshal([]byte(tt.jsonStr), &v)
+		got := err == nil && v.isUnlocked()
+		if got != tt.want {
 			t.Errorf("isUnlocked(%s) = %v, want %v", tt.jsonStr, got, tt.want)
 		}
 	}
