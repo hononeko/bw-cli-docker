@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -25,7 +26,11 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
-var execCommand = exec.Command
+var (
+	execCommand         = exec.Command
+	bwServeWaitRetries  = 30
+	bwServeWaitInterval = 1 * time.Second
+)
 
 func main() {
 	// 1. Login, Unlock, and get Session Token
@@ -34,7 +39,6 @@ func main() {
 		fmt.Fprintf(os.Stderr, "FATAL: Bitwarden login failed: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Println("Bitwarden login successful.")
 
 	// Set the session token as an environment variable for all child processes
 	if err := os.Setenv("BW_SESSION", sessionToken); err != nil {
@@ -44,7 +48,15 @@ func main() {
 
 	// 2. Start the actual 'bw serve' process in the background
 	bwServePort := getEnv("BW_SERVE_PORT", "8088")
-	go startBwServe(bwServePort)
+	go startBwServe(bwServePort, sessionToken)
+
+	// Wait for the API to be unlocked before routing traffic
+	if err := waitForBwServe(bwServePort); err != nil {
+		fmt.Fprintf(os.Stderr, "FATAL: Bitwarden serve API failed to initialize: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("Bitwarden serve API is ready and unlocked. Authentication successful.")
 
 	// 3. Start the proxy server on the main port
 	bwProxyPort := getEnv("BW_PROXY_PORT", "8087")
@@ -105,15 +117,58 @@ func loginAndGetSession() (string, error) {
 }
 
 // startBwServe starts the 'bw serve' process.
-func startBwServe(port string) {
+func startBwServe(port, sessionToken string) {
 	fmt.Printf("Starting 'bw serve' on internal port %s\n", port)
-	cmd := execCommand("bw", "serve", "--hostname", "0.0.0.0", "--port", port)
+	cmd := execCommand("bw", "serve", "--hostname", "0.0.0.0", "--port", port, "--session", sessionToken)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "FATAL: 'bw serve' process failed: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+// waitForBwServe blocks until 'bw serve' returns an unlocked status, or errors out.
+func waitForBwServe(port string) error {
+	statusURL := fmt.Sprintf("http://127.0.0.1:%s/status", port)
+	client := &http.Client{Timeout: 2 * time.Second}
+
+	fmt.Println("Waiting for 'bw serve' to become ready and unlocked...")
+
+	for i := 0; i < bwServeWaitRetries; i++ {
+		resp, err := client.Get(statusURL)
+		if err == nil {
+			body, ioErr := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			if resp.StatusCode == http.StatusOK && ioErr == nil {
+				var v map[string]interface{}
+				if err := json.Unmarshal(body, &v); err == nil {
+					if isUnlocked(v) {
+						return nil
+					}
+				}
+			}
+		}
+		time.Sleep(bwServeWaitInterval)
+	}
+	return fmt.Errorf("timeout waiting for bw serve to become unlocked")
+}
+
+func isUnlocked(v map[string]interface{}) bool {
+	if data, ok := v["data"].(map[string]interface{}); ok {
+		if template, ok := data["template"].(map[string]interface{}); ok {
+			if status, ok := template["status"].(string); ok && status == "unlocked" {
+				return true
+			}
+		}
+		if status, ok := data["status"].(string); ok && status == "unlocked" {
+			return true
+		}
+	}
+	if status, ok := v["status"].(string); ok && status == "unlocked" {
+		return true
+	}
+	return false
 }
 
 // startProxyServer starts the proxy and health check server.

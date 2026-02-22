@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"testing"
+	"time"
 )
 
 // mockExecCommand mocks exec.Command for testing
@@ -115,4 +117,72 @@ func TestSyncEndpointMethodNotAllowed(t *testing.T) {
 			status, http.StatusMethodNotAllowed)
 	}
 }
-	
+
+func TestWaitForBwServe_Unlocked(t *testing.T) {
+	oldRetries := bwServeWaitRetries
+	oldInterval := bwServeWaitInterval
+	bwServeWaitRetries = 5
+	bwServeWaitInterval = 10 * time.Millisecond
+	defer func() {
+		bwServeWaitRetries = oldRetries
+		bwServeWaitInterval = oldInterval
+	}()
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": {"template": {"status": "unlocked"}}}`))
+	}))
+	defer ts.Close()
+
+	u, _ := url.Parse(ts.URL)
+	port := u.Port()
+
+	if err := waitForBwServe(port); err != nil {
+		t.Fatalf("expected nil, got %v", err)
+	}
+}
+
+func TestWaitForBwServe_Timeout(t *testing.T) {
+	oldRetries := bwServeWaitRetries
+	oldInterval := bwServeWaitInterval
+	bwServeWaitRetries = 2
+	bwServeWaitInterval = 10 * time.Millisecond
+	defer func() {
+		bwServeWaitRetries = oldRetries
+		bwServeWaitInterval = oldInterval
+	}()
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": {"template": {"status": "locked"}}}`))
+	}))
+	defer ts.Close()
+
+	u, _ := url.Parse(ts.URL)
+	port := u.Port()
+
+	if err := waitForBwServe(port); err == nil {
+		t.Fatal("expected timeout error")
+	}
+}
+
+func TestIsUnlocked(t *testing.T) {
+	tests := []struct {
+		jsonStr string
+		want    bool
+	}{
+		{`{"data": {"template": {"status": "unlocked"}}}`, true},
+		{`{"data": {"status": "unlocked"}}`, true},
+		{`{"status": "unlocked"}`, true},
+		{`{"data": {"template": {"status": "locked"}}}`, false},
+		{`{}`, false},
+	}
+
+	for _, tt := range tests {
+		var v map[string]interface{}
+		json.Unmarshal([]byte(tt.jsonStr), &v)
+		if got := isUnlocked(v); got != tt.want {
+			t.Errorf("isUnlocked(%s) = %v, want %v", tt.jsonStr, got, tt.want)
+		}
+	}
+}
