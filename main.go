@@ -27,10 +27,11 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
-var (
-	execCommand         = exec.Command
-	bwServeWaitRetries  = 30
-	bwServeWaitInterval = 1 * time.Second
+var execCommand = exec.Command
+
+const (
+	defaultBwServeWaitRetries  = 30
+	defaultBwServeWaitInterval = 1 * time.Second
 )
 
 func main() {
@@ -134,16 +135,20 @@ func waitForBwServe(port string) error {
 	statusURL := fmt.Sprintf("http://127.0.0.1:%s/status", port)
 	client := &http.Client{Timeout: 2 * time.Second}
 
-	retries := bwServeWaitRetries
+	retries := defaultBwServeWaitRetries
 	if val := os.Getenv("BW_SERVE_WAIT_RETRIES"); val != "" {
 		if r, err := strconv.Atoi(val); err == nil {
 			retries = r
+		} else {
+			fmt.Fprintf(os.Stderr, "WARN: Invalid format for BW_SERVE_WAIT_RETRIES '%s', using default of %d: %v\n", val, retries, err)
 		}
 	}
-	interval := bwServeWaitInterval
+	interval := defaultBwServeWaitInterval
 	if val := os.Getenv("BW_SERVE_WAIT_INTERVAL"); val != "" {
 		if d, err := time.ParseDuration(val); err == nil {
 			interval = d
+		} else {
+			fmt.Fprintf(os.Stderr, "WARN: Invalid format for BW_SERVE_WAIT_INTERVAL '%s', using default of %s: %v\n", val, interval, err)
 		}
 	}
 
