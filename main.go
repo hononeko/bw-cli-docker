@@ -203,11 +203,7 @@ func isUnlocked(v map[string]interface{}) bool {
 	}
 
 	template, _ := data["template"].(map[string]interface{})
-	if extractStatus(template) == "unlocked" {
-		return true
-	}
-
-	return false
+	return extractStatus(template) == "unlocked"
 }
 
 // startProxyServer starts the proxy and health check server.
