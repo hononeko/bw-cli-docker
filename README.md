@@ -46,7 +46,7 @@ spec:
         spec:
             containers:
                 - name: bitwarden-cli
-                  image: ghcr.io/vehkiya/bw-cli:latest # 👈 Image here
+                  image: ghcr.io/hononeko/bw-cli:latest # 👈 Image here
                   ports:
                       - containerPort: 8087
                   env:

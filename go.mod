@@ -1,3 +1,3 @@
-module github.com/vehkiya/bw-cli-docker
+module github.com/hononeko/bw-cli-docker
 
 go 1.26.0
