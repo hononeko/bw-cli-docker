@@ -1,5 +1,7 @@
 # Bitwarden CLI Proxy & Webhook
 
+[![Build Status](https://img.shields.io/github/actions/workflow/status/hononeko/bw-cli-docker/ci-build-push.yaml)](https://github.com/hononeko/bw-cli-docker/actions/workflows/ci-build-push.yaml)
+
 This container image runs the [Bitwarden CLI](https://github.com/bitwarden/clients) (`bw`) and exposes its `serve` functionality through a proxy on port 8087 by default. The proxy provides endpoints for health checks and manual synchronization, and automatically runs a periodic background sync to keep the vault up-to-date.
 
 It is designed to be used as a webhook provider for the [External Secrets Operator](https://external-secrets.io/latest/) (ESO) in Kubernetes, allowing you to sync secrets from a self-hosted Vaultwarden or Bitwarden instance.
