@@ -226,7 +226,11 @@ func startProxyServer(proxyPort, targetPort string) {
 		os.Exit(1)
 	}
 
-	proxy := httputil.NewSingleHostReverseProxy(targetURL)
+	proxy := &httputil.ReverseProxy{
+		Rewrite: func(pr *httputil.ProxyRequest) {
+			pr.SetURL(targetURL)
+		},
+	}
 	mux := setupRouter(proxy)
 
 	fmt.Printf("Starting proxy server on port %s\n", proxyPort)
