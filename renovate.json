@@ -16,8 +16,8 @@
   "customManagers": [
     {
       "customType": "regex",
-      "managerFilePatterns": [
-        "/^Dockerfile$/"
+      "fileMatch": [
+        "^Dockerfile$"
       ],
       "matchStrings": [
         "ARG BW_CLI_VERSION=(?<currentValue>.*?)\\s"
