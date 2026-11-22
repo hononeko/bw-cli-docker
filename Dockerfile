@@ -5,7 +5,7 @@ ARG BW_CLI_VERSION=2026.11.0
 ENV BW_CLI_VERSION=${BW_CLI_VERSION}
 RUN apt-get update && \
     apt-get install -y --no-install-recommends curl unzip ca-certificates && \
-    curl -fL "https://github.com/bitwarden/clients/releases/download/cli-v${BW_CLI_VERSION}/bw-linux-${BW_CLI_VERSION}.zip" -o bw.zip && \
+    curl -fL "https://github.com/bitwarden/clients/releases/download/cli-v${BW_CLI_VERSION}/bw-bit-linux-${BW_CLI_VERSION}.zip" -o bw.zip && \
     unzip bw.zip && \
     chmod +x bw && \
     rm bw.zip && \
